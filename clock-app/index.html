@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <!-- 添加到 <head> 中 -->
+    <link rel="manifest" href="manifest.json">
+    <script>
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker 注册成功');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker 注册失败: ', err);
+                    });
+            });
+        }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实时走针时钟</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .clock-container {
+            position: relative;
+            width: 300px;
+            height: 300px;
+        }
+
+        .clock {
+            width: 100%;
+            height: 100%;
+            border: 8px solid #333;
+            border-radius: 50%;
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .center-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #333;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .hour-hand,
+        .minute-hand,
+        .second-hand {
+            position: absolute;
+            transform-origin: bottom center;
+            bottom: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 5px;
+        }
+
+        .hour-hand {
+            width: 6px;
+            height: 80px;
+            background-color: #333;
+            z-index: 3;
+        }
+
+        .minute-hand {
+            width: 4px;
+            height: 110px;
+            background-color: #666;
+            z-index: 2;
+        }
+
+        .second-hand {
+            width: 2px;
+            height: 130px;
+            background-color: #f00;
+            z-index: 1;
+        }
+
+        .hour-mark {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+
+        .hour-mark span {
+            position: absolute;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            transform: translate(-50%, -50%);
+        }
+
+        .digital-time {
+            position: absolute;
+            bottom: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .date-display {
+            position: absolute;
+            top: -50px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="clock-container">
+        <div class="date-display" id="dateDisplay"></div>
+        <div class="clock">
+            <div class="hour-mark" id="hourMark"></div>
+            <div class="hour-hand" id="hourHand"></div>
+            <div class="minute-hand" id="minuteHand"></div>
+            <div class="second-hand" id="secondHand"></div>
+            <div class="center-dot"></div>
+        </div>
+        <div class="digital-time" id="digitalTime"></div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const hourHand = document.getElementById('hourHand');
+        const minuteHand = document.getElementById('minuteHand');
+        const secondHand = document.getElementById('secondHand');
+        const digitalTime = document.getElementById('digitalTime');
+        const dateDisplay = document.getElementById('dateDisplay');
+        const hourMark = document.getElementById('hourMark');
+
+        // 创建时钟刻度
+        function createHourMarks() {
+            for (let i = 1; i <= 12; i++) {
+                const mark = document.createElement('span');
+                mark.textContent = i;
+
+                // 计算每个数字的位置
+                const angle = (i * 30) * (Math.PI / 180); // 转换为弧度
+                const radius = 120; // 距离中心的半径
+                const x = 150 + Math.sin(angle) * radius;
+                const y = 150 - Math.cos(angle) * radius;
+
+                mark.style.left = `${x}px`;
+                mark.style.top = `${y}px`;
+
+                hourMark.appendChild(mark);
+            }
+        }
+
+        // 更新时间
+        function updateTime() {
+            const now = new Date();
+
+            // 获取时间
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            const seconds = now.getSeconds();
+            const milliseconds = now.getMilliseconds();
+
+            // 计算角度
+            const hourDegrees = (hours % 12) * 30 + minutes * 0.5; // 每小时30度，每分钟0.5度
+            const minuteDegrees = minutes * 6 + seconds * 0.1; // 每分钟6度，每秒0.1度
+            const secondDegrees = seconds * 6 + milliseconds * 0.006; // 每秒6度，每毫秒0.006度
+
+            // 应用旋转
+            hourHand.style.transform = `translateX(-50%) rotate(${hourDegrees}deg)`;
+            minuteHand.style.transform = `translateX(-50%) rotate(${minuteDegrees}deg)`;
+            secondHand.style.transform = `translateX(-50%) rotate(${secondDegrees}deg)`;
+
+            // 更新数字时间
+            const formattedHours = hours.toString().padStart(2, '0');
+            const formattedMinutes = minutes.toString().padStart(2, '0');
+            const formattedSeconds = seconds.toString().padStart(2, '0');
+            digitalTime.textContent = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+
+            // 更新日期
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            dateDisplay.textContent = now.toLocaleDateString('zh-CN', options);
+
+            // 使用requestAnimationFrame实现平滑动画
+            requestAnimationFrame(updateTime);
+        }
+
+        // 初始化
+        function init() {
+            createHourMarks();
+            updateTime();
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('load', init);
+    </script>
+</body>
+
+</html>
